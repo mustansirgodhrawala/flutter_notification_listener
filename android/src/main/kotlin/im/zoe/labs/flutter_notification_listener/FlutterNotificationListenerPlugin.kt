@@ -24,6 +24,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
   private var methodChannel: MethodChannel? = null 
   private var eventChannel: EventChannel? = null 
   private val flutterJNI: FlutterJNI =  FlutterJNI() 
+  private lateinit var receiver: BroadcastReceiver
 
   private lateinit var mContext: Context
 
@@ -54,32 +55,29 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_CACHE_KEY, engine)
 
     // TODO: remove those code
-    val receiver = NotificationReceiver()
-    val intentFilter = IntentFilter()
-    intentFilter.addAction(NotificationsHandlerService.NOTIFICATION_INTENT)
+   // Initialize and register the receiver
+    receiver = NotificationReceiver()
+    val intentFilter = IntentFilter().apply {
+          addAction(NotificationsHandlerService.NOTIFICATION_INTENT)
+    }
     mContext.registerReceiver(receiver, intentFilter)
 
     Log.i(TAG, "attached engine finished")
   }
 
- override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     methodChannel?.setMethodCallHandler(null)
-    methodChannel = null
-
     eventChannel?.setStreamHandler(null)
-    eventChannel = null
+    
+    // Use the correct method to ensure the engine is detached from native
+    flutterJNI.ensureNotAttachedToNative()
 
-    // Ensure that FlutterJNI is properly detached
-    flutterJNI.detachFromNativeAndClearNativePlatformViewId()
+    // Properly unregister the receiver if needed
+    mContext.unregisterReceiver(receiver)
 
-    // Unregister any receivers or clean up any resources
-    try {
-        mContext.unregisterReceiver(receiver)
-    } catch (e: IllegalArgumentException) {
-        // Handle the exception if receiver is not registered
-        Log.e(TAG, "Receiver not registered: ${e.message}")
-    }
+    Log.i(TAG, "Detached from engine")
 }
+
 
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
   override fun onListen(o: Any?, eventSink: EventChannel.EventSink?) {
