@@ -66,17 +66,25 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
   }
 
 override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    // Clear method and event channel handlers
     methodChannel?.setMethodCallHandler(null)
     eventChannel?.setStreamHandler(null)
-    
-    // Use the correct method to ensure the engine is detached from native
-    flutterJNI.ensureNotAttachedToNative()
 
-    // Properly unregister the receiver if needed
-    mContext.unregisterReceiver(receiver)
+    // Unregister the receiver to avoid memory leaks
+    try {
+        mContext.unregisterReceiver(receiver)
+    } catch (e: IllegalArgumentException) {
+        Log.w(TAG, "Receiver was not registered, skipping unregistration.")
+    }
 
-    Log.i(TAG, "Detached from engine")
+    // Clear the channels and receiver
+    methodChannel = null
+    eventChannel = null
+    eventSink = null
+
+    Log.i(TAG, "Detached from engine and cleaned up resources.")
 }
+
 
 
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
