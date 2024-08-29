@@ -62,20 +62,24 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     Log.i(TAG, "attached engine finished")
   }
 
-  override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-    val method = methodChannel
-    if (method != null) {
-      method.setMethodCallHandler(null) 
-      methodChannel = null 
-    }
+ override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    methodChannel?.setMethodCallHandler(null)
+    methodChannel = null
 
-    val event = eventChannel
-    if (event != null) {
-      event.setStreamHandler(null) 
-      eventChannel = null 
+    eventChannel?.setStreamHandler(null)
+    eventChannel = null
+
+    // Ensure that FlutterJNI is properly detached
+    flutterJNI.detachFromNativeAndClearNativePlatformViewId()
+
+    // Unregister any receivers or clean up any resources
+    try {
+        mContext.unregisterReceiver(receiver)
+    } catch (e: IllegalArgumentException) {
+        // Handle the exception if receiver is not registered
+        Log.e(TAG, "Receiver not registered: ${e.message}")
     }
-    flutterJNI.attachToNative() 
-  }
+}
 
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
   override fun onListen(o: Any?, eventSink: EventChannel.EventSink?) {
